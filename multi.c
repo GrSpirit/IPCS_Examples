@@ -183,34 +183,6 @@ void shm_free(int shmid, void *buffer)
   }
 }
 
-void exec_child(int semid)
-{
-  struct sembuf op;
-  op.sem_num = 0;
-  op.sem_op = -1;
-  op.sem_flg = 0;
-
-  if (semop(semid, &op, 1) < 0) {
-    perror("Failed to lock semaphore: ");
-    exit(-1);
-  }
-
-  // Do smthng
-  sleep(2);
-  printf("Done %d\n", getpid());
-  
-  op.sem_num = 0;
-  op.sem_op = 1;
-  op.sem_flg = 0;
-
-  if (semop(semid, &op, 1) < 0) {
-    perror("Failed to release semaphore: ");
-    exit(-1);
-  }
-
-  exit(0);
-}
-
 void worker_run(Worker *worker)
 {
   FILE *fd;
