@@ -1,13 +1,8 @@
 /* multi.h */
 #ifndef MULTI
 #define MULTI
-#define MESSAGE_SIZE 1024
 
-#define TMSG 1
-#define TEXIT 2
-
-#define SNEW 1
-#define SDONE 2
+#include "message.h"
 
 typedef union semun
 {
@@ -15,13 +10,6 @@ typedef union semun
   struct semid_ds *buf;
   ushort * array;
 } semun_t;
-
-typedef struct 
-{
-  int type;
-  int status;
-  char text[MESSAGE_SIZE];
-} Message;
 
 typedef struct 
 {
