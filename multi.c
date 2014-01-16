@@ -11,6 +11,8 @@
 #include <stdlib.h>
 
 #include "multi.h"
+#include "semaphore.h"
+#include "shared_memory.h"
 
 void worker_run(Worker*);
 
@@ -72,115 +74,6 @@ int main(int argc, char *argv[])
   sem_free(semid);
   free(childs);
   return 0;
-}
-
-// Create semaphore
-int sem_init(int sem_count)
-{
-  int i;
-  int semid;
-  if ((semid = semget(IPC_PRIVATE, sem_count, 0660 | IPC_CREAT)) < 0) {
-    perror("Couldn\'t create semaphore: ");
-    exit(-1);
-  }
-
-  // Set initial semaphore value
-  for (i = 0; i < sem_count; ++i) {
-    if (semctl(semid, i, SETVAL, 1) < 0)  {
-      perror("Failed to set semaphore value: ");
-      exit(-1);
-    }
-  }
-  return semid;  
-}
-// Lock semaphore
-void sem_down(int semid, int index, int len)
-{
-  struct sembuf op;
-  op.sem_num = index;
-  op.sem_op = -1 * len;
-  op.sem_flg = 0;
-
-  if (semop(semid, &op, 1) < 0) {
-    perror("Failed to down semaphore: ");
-    exit(-1);
-  }
-}
-
-// Lock semaphore
-int sem_down_nowait(int semid, int index, int len)
-{
-  int errno;
-  struct sembuf op;
-  op.sem_num = index;
-  op.sem_op = -1 * len;
-  op.sem_flg = IPC_NOWAIT;
-
-  if (semop(semid, &op, 1) < 0) {
-    if (errno == EAGAIN) return 1;
-    perror("Failed to down semaphore: ");
-    exit(-1);
-  }
-  return 0;
-}
-
-// Unlock semaphore
-void sem_up(int semid, int num, int len)
-{
-  struct sembuf op;
-  op.sem_num = num;
-  op.sem_op = len;
-  op.sem_flg = 0;
-
-  if (semop(semid, &op, 1) < 0) {
-    perror("Failed to up semaphore: ");
-    exit(-1);
-  }
-}
-
-// Release semaphore
-void sem_free(int semid)
-{
-  if (semctl(semid, 0, IPC_RMID) < 0) {
-    perror("Failed to delete semaphore: ");
-    exit(-1);
-  }
-}
-
-// Create shared memory
-int shm_init(size_t size)
-{
-  int shmid;
-  if ((shmid = shmget(IPC_PRIVATE, size, 0660 | IPC_CREAT)) < 0) {
-    perror("Failed to initiate shared memory: ");
-    exit(-1);
-  }
-  return shmid;
-}
-
-// Attach to shared memory
-void *shm_attach(int shmid)
-{
-  void *buffer;
-  if ((buffer = shmat(shmid, NULL, 0)) == (void*)(-1)) {
-    perror("Failed to attach to shared memory: ");
-    exit(-1);
-  }
-  return buffer;
-}
-
-// Free shared memory
-void shm_free(int shmid, void *buffer)
-{
-  if (shmdt(buffer) < 0) {
-    perror("Failed to detach shared memory: ");
-    exit(-1);
-  }
-
-  if (shmctl(shmid, IPC_RMID, NULL) < 0) {
-    perror("Failed to delete shared memory: ");
-    exit(-1);
-  }
 }
 
 void worker_run(Worker *worker)
