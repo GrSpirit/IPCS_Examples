@@ -37,7 +37,7 @@ int sem_down_nowait(int semid, int index, int len);
 void sem_up(int semid, int num, int len);
 void sem_free(int semid);
 
-int shm_init();
+int shm_init(size_t size);
 void *shm_attach(int shmid);
 void shm_free(int semid, void *buffer);
 

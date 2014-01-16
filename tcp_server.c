@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -16,7 +17,6 @@ int main()
     int sock, listener;
     struct sockaddr_in addr;
     char buf[BUF_SIZE];
-    int bytes_read;
     int msgid;
     Message msg;
 
@@ -76,7 +76,7 @@ int msg_init()
 	return msgid;
 }
 
-void mgs_free(int msgid)
+void msg_free(int msgid)
 {
 	if (msgctl(msgid, IPC_RMID, NULL) < 0) {
 		perror("Can\'t delete queue: ");

@@ -22,7 +22,7 @@ int sendall(int sockfd, void *buf, int len)
 
     while(total < len)
     {
-        n = send(sockfd, buf + total, len - total, 0);
+        n = send(sockfd, (char*)buf + total, len - total, 0);
         if(n == -1) { break; }
         total += n;
     }

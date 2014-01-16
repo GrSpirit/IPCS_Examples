@@ -13,6 +13,6 @@ typedef struct
 
 int msg_init();
 void msg_send(int msgid, Message *msg);
-void mgs_free(int msgid);
+void msg_free(int msgid);
 
 #endif
