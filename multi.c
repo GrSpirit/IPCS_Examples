@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     childs[i].semid = semid;
     childs[i].index = i;
     childs[i].message = (Message*)buffer + i;
-    bzero(childs[i].message, sizeof(childs[i].message));
+    bzero(childs[i].message, sizeof(Message));
     if ((pid = fork()) == 0) {
       childs[i].pid = getpid();
       worker_run(&childs[i]);
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     if (!sem_down_nowait(semid, i, 1)) {
       // Message processed
       if (childs[i].message->status == SDONE) {
-        bzero(childs[i].message, sizeof(childs[i].message));
+        bzero(childs[i].message, sizeof(Message));
       }
       sprintf(childs[i].message->text, "Test %d", i);
       childs[i].message->type = TMSG;

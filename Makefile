@@ -7,13 +7,13 @@ DEPS = message.h
 all: multi tcp_server
 
 multi: $(MULTI_OBJ)
-	$(CC) -o $@ $^ $(CFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^
 
 tcp_server: $(TCP_SERVER_OBJ)
-	$(CC) -o $@ $^ $(CFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^
 
 %.o: %.c %.h $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	@rm -f multi tcp_server *.o
