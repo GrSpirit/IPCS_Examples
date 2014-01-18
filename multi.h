@@ -19,4 +19,7 @@ typedef struct
   Message *message;
 } Worker;
 
+void worker_run(Worker*);
+int parse_params(int argc, char *argv[], int *queueid, int *proc_count);
+
 #endif

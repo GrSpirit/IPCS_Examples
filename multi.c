@@ -11,8 +11,7 @@
 #include "multi.h"
 #include "semaphore.h"
 #include "shared_memory.h"
-
-void worker_run(Worker*);
+#include "queue.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,9 +19,15 @@ int main(int argc, char *argv[])
   int pid;
   int semid;
   int shmid;
+  int queueid = -1;
   void *buffer;
-  int proc_count = (argc < 2) ? 2 : atoi(argv[1]);
+  int proc_count = 2;
   Worker *childs;
+  Message qmsg;
+
+  if (parse_params(argc, argv, &queueid, &proc_count)) {
+    exit(0);
+  }
 
   if (proc_count < 1 || proc_count > 10) {
     fprintf(stderr, "ERROR: Bad process count: %d\n", proc_count);
@@ -51,16 +56,20 @@ int main(int argc, char *argv[])
     }
   }
 
-  for (i = 0; i < proc_count; ++i) {
-    if (!sem_down_nowait(semid, i, 1)) {
-      // Message processed
-      if (childs[i].message->status == SDONE) {
-        bzero(childs[i].message, sizeof(Message));
+  while(1) {
+    msg_recv(queueid, &qmsg);
+    for (i = 0; i < proc_count; ++i) {
+      if (!sem_down_nowait(semid, i, 1)) {
+        // Message processed
+        if (childs[i].message->status == SDONE) {
+          bzero(childs[i].message, sizeof(Message));
+        }
+        memcpy(childs[i].message, &qmsg, sizeof(Message));
+        //sprintf(childs[i].message->text, "Test %d", i);
+        //childs[i].message->type = TMSG;
+        //childs[i].message->status = SNEW;
+        sem_up(semid, i, 2);
       }
-      sprintf(childs[i].message->text, "Test %d", i);
-      childs[i].message->type = TMSG;
-      childs[i].message->status = SNEW;
-      sem_up(semid, i, 2);
     }
   }
 
@@ -102,4 +111,39 @@ void worker_run(Worker *worker)
     }
     sem_up(worker->semid, worker->index, 1);
   }
+}
+
+int parse_params(int argc, char *argv[], int *queueid, int *proc_count)
+{
+  int opt;
+  int qfnd = 0;
+  const char usage_str[] = "Usage: multi -q queue_id [-p process_count]\n";
+  while ((opt = getopt(argc, argv, "qp")) != -1) {
+    switch(opt) {
+      case 'q':
+        *queueid = atoi(optarg);
+        if (*queueid <= 0) {
+          fprintf(stderr, "Wrong queue identifier: %s\n", optarg);
+          return -1;
+        }
+        qfnd = 1;
+        break;
+      case 'p':
+        *proc_count = atoi(optarg);
+        if (*proc_count < 1 || *proc_count > 10) {
+          fprintf(stderr, "Wrong process count: %s\n", optarg);
+          return -1;
+        }
+        break;
+      default: /* '?' */
+       fprintf(stderr, usage_str);
+       return -2;
+    }
+  }
+
+  if (qfnd == 0) {
+    fprintf(stderr, usage_str);
+    return -1;
+  }
+  return 0;
 }
