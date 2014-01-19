@@ -19,6 +19,13 @@ typedef struct
   Message *message;
 } Worker;
 
+typedef struct 
+{
+  int semid;
+  int shmid;
+  void *shm_buffer;
+} Globals;
+
 void worker_run(Worker*);
 int parse_params(int argc, char *argv[], int *queueid, int *proc_count);
 

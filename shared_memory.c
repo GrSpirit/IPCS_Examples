@@ -31,12 +31,12 @@ void *shm_attach(int shmid)
 // Free shared memory
 void shm_free(int shmid, void *buffer)
 {
-  if (shmdt(buffer) < 0) {
+  if (buffer && shmdt(buffer) < 0) {
     perror("Failed to detach shared memory: ");
     exit(-1);
   }
 
-  if (shmctl(shmid, IPC_RMID, NULL) < 0) {
+  if (shmid && shmctl(shmid, IPC_RMID, NULL) < 0) {
     perror("Failed to delete shared memory: ");
     exit(-1);
   }

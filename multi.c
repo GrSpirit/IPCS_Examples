@@ -13,14 +13,14 @@
 #include "shared_memory.h"
 #include "queue.h"
 
+Globals glob;
+void free_resources();
+
 int main(int argc, char *argv[])
 {
   int i;
   int pid;
-  int semid;
-  int shmid;
   int queueid = -1;
-  void *buffer;
   int proc_count = 2;
   Worker *childs;
   Message qmsg;
@@ -37,14 +37,14 @@ int main(int argc, char *argv[])
 
   childs = (Worker*)calloc(proc_count, sizeof(Worker));
 
-  semid = sem_init(proc_count);
-  shmid = shm_init(proc_count * sizeof(Message));
-  buffer = shm_attach(shmid);
+  glob.semid = sem_init(proc_count);
+  glob.shmid = shm_init(proc_count * sizeof(Message));
+  glob.shm_buffer = shm_attach(glob.shmid);
 
   for (i = 0; i < proc_count; ++i) {
-    childs[i].semid = semid;
+    childs[i].semid = glob.semid;
     childs[i].index = i;
-    childs[i].message = (Message*)buffer + i;
+    childs[i].message = (Message*)glob.shm_buffer + i;
     bzero(childs[i].message, sizeof(Message));
     if ((pid = fork()) == 0) {
       childs[i].pid = getpid();
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
   while(1) {
     msg_recv(queueid, &qmsg);
     for (i = 0; i < proc_count; ++i) {
-      if (!sem_down_nowait(semid, i, 1)) {
+      if (!sem_down_nowait(glob.semid, i, 1)) {
         // Message processed
         if (childs[i].message->status == SDONE) {
           bzero(childs[i].message, sizeof(Message));
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
         //sprintf(childs[i].message->text, "Test %d", i);
         //childs[i].message->type = TMSG;
         //childs[i].message->status = SNEW;
-        sem_up(semid, i, 2);
+        sem_up(glob.semid, i, 2);
       }
     }
   }
@@ -77,8 +77,7 @@ int main(int argc, char *argv[])
     waitpid(childs[i].pid, NULL, 0);
   }
 
-  shm_free(shmid, buffer);
-  sem_free(semid);
+  free_resources();
   free(childs);
   return 0;
 }
@@ -146,4 +145,13 @@ int parse_params(int argc, char *argv[], int *queueid, int *proc_count)
     return -1;
   }
   return 0;
+}
+
+void free_resources()
+{
+  sem_free(glob.semid);
+  glob.semid = 0;
+  shm_free(glob.shmid, glob.shm_buffer);
+  glob.shmid = 0;
+  glob.shm_buffer = NULL;
 }

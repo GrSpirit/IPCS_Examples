@@ -73,7 +73,7 @@ void sem_up(int semid, int num, int len)
 // Release semaphore
 void sem_free(int semid)
 {
-  if (semctl(semid, 0, IPC_RMID) < 0) {
+  if (semid && semctl(semid, 0, IPC_RMID) < 0) {
     perror("Failed to delete semaphore: ");
     exit(-1);
   }
