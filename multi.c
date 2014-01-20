@@ -58,24 +58,16 @@ int main(int argc, char *argv[])
 
   while(1) {
     msg_recv(queueid, &qmsg);
-    for (i = 0; i < proc_count; ++i) {
-      if (!sem_down_nowait(glob.semid, i, 1)) {
-        // Message processed
-        if (childs[i].message->status == SDONE) {
-          bzero(childs[i].message, sizeof(Message));
-        }
-        memcpy(childs[i].message, &qmsg, sizeof(Message));
-        //sprintf(childs[i].message->text, "Test %d", i);
-        //childs[i].message->type = TMSG;
-        //childs[i].message->status = SNEW;
-        sem_up(glob.semid, i, 2);
-      }
+    swith(qmsg.type) {
+      case TEXIT:
+      default :
     }
   }
 
-  for (i = 0; i < proc_count; ++i) {
-    waitpid(childs[i].pid, NULL, 0);
-  }
+  //for (i = 0; i < proc_count; ++i) {
+  //  waitpid(childs[i].pid, NULL, 0);
+  //}
+  while(wait(NULL) > 0);
 
   free_resources();
   free(childs);
@@ -154,4 +146,27 @@ void free_resources()
   shm_free(glob.shmid, glob.shm_buffer);
   glob.shmid = 0;
   glob.shm_buffer = NULL;
+}
+
+void handler_exit(Message *msg);
+void handler_default(Message *msg)
+{
+  int i;
+  for (i = 0; i < proc_count; ++i) {
+    if (!sem_down_nowait(glob.semid, i, 1)) {
+      // Message processed
+      if (childs[i].message->status == SDONE) {
+        bzero(childs[i].message, sizeof(Message));
+      }
+      memcpy(childs[i].message, &qmsg, sizeof(Message));
+      sem_up(glob.semid, i, 2);
+      break;
+    }
+
+    // Repeat loop
+    if (i == (proc_count - 1)) {
+      usleep(10);
+      i = -1;
+    }
+  }
 }

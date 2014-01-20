@@ -5,11 +5,11 @@
 #include <string.h>
 
 #include "queue.h"
-
-int exec_balancer(int queueid);
+#include "starter.h"
 
 int main()
 {
+  int bpid;
   int queueid;
   char ifile_name[] = "input.txt";
   FILE *ifd;
@@ -17,7 +17,7 @@ int main()
   Message msg;
 
   queueid = msg_init();
-  exec_balancer(queueid);
+  bpid = exec_balancer(queueid);
 
   if (!(ifd = fopen(ifile_name, "r"))) {
     perror("Cannot open input file");
@@ -25,28 +25,40 @@ int main()
   }
 
   while (fgets(line, sizeof(line), ifd)) {
-    bzero(&msg, sizeof(Message));
-    msg.type = 1;
-    msg.status = 1;
-    strcpy(msg.text, line);
+    fill_msg(&msg, type, status, line);
     msg_send(queueid, &msg);
     usleep(10);
   }
   fclose(ifd);
 
+  // Send exit message
+  fill_msg(2, 1, NULL);
+  msg_send(queueid, &msg);
+
+  wait(0);
   msg_free(queueid);
   return 0;
 }
 
 int exec_balancer(int queueid)
 {
+  int pid;
   char squeueid[20];
   sprintf(squeueid, "%d", queueid);
-  if (fork())
-    return 0;
+  if (pid = fork())
+    return pid;
   if ((execl("multi", "multi", "-q", squeueid, NULL)) != 0) {
     fprintf(stderr, "Failed to execute balancer\n");
     exit(-1);
   }
   exit(0);
+}
+
+// Fill message structure
+void fill_msg(Message *msg, int type, int status, char *text)
+{
+  bzero(msg, sizeof(Message));
+  msg->type = type;
+  msg->status = status;
+  if (text) strcpy(msg->text, text);
 }

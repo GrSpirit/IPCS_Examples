@@ -29,4 +29,7 @@ typedef struct
 void worker_run(Worker*);
 int parse_params(int argc, char *argv[], int *queueid, int *proc_count);
 
+void handler_exit(Message *msg);
+void handler_default(Message *msg);
+
 #endif
