@@ -14,63 +14,69 @@
 #include "queue.h"
 
 Globals glob;
-void free_resources();
+Handler handlers[HANDLERS_COUNT] = {
+  { TMSG, &handler_default },
+  { TEXIT, &handler_exit }
+};
 
 int main(int argc, char *argv[])
 {
   int i;
   int pid;
   int queueid = -1;
-  int proc_count = 2;
-  Worker *childs;
+  //int proc_count = 2;
+  //Worker *childs;
+  ChildList childs = {.count = 2};
   Message qmsg;
 
-  if (parse_params(argc, argv, &queueid, &proc_count)) {
+  if (parse_params(argc, argv, &queueid, &childs.count)) {
     exit(0);
   }
 
-  if (proc_count < 1 || proc_count > 10) {
-    fprintf(stderr, "ERROR: Bad process count: %d\n", proc_count);
+  if (childs.count < 1 || childs.count > 10) {
+    fprintf(stderr, "ERROR: Bad process count: %d\n", childs.count);
     exit(-1);
   }
-  printf("Process count = %d\n", proc_count);
+  printf("Process count = %d\n", childs.count);
 
-  childs = (Worker*)calloc(proc_count, sizeof(Worker));
+  childs.worker = (Worker*)calloc(childs.count, sizeof(Worker));
 
-  glob.semid = sem_init(proc_count);
-  glob.shmid = shm_init(proc_count * sizeof(Message));
+  glob.semid = sem_init(childs.count);
+  glob.shmid = shm_init(childs.count * sizeof(Message));
   glob.shm_buffer = shm_attach(glob.shmid);
 
-  for (i = 0; i < proc_count; ++i) {
-    childs[i].semid = glob.semid;
-    childs[i].index = i;
-    childs[i].message = (Message*)glob.shm_buffer + i;
-    bzero(childs[i].message, sizeof(Message));
+  for (i = 0; i < childs.count; ++i) {
+    childs.worker[i].semid = glob.semid;
+    childs.worker[i].index = i;
+    childs.worker[i].message = (Message*)glob.shm_buffer + i;
+    bzero(childs.worker[i].message, sizeof(Message));
     if ((pid = fork()) == 0) {
-      childs[i].pid = getpid();
-      worker_run(&childs[i]);
+      childs.worker[i].pid = getpid();
+      worker_run(&childs.worker[i]);
     }
     else {
       printf("Created child %d\n", pid);
-      childs[i].pid = pid;
+      childs.worker[i].pid = pid;
     }
   }
 
   while(1) {
     msg_recv(queueid, &qmsg);
-    swith(qmsg.type) {
-      case TEXIT:
-      default :
+    for (i = 0; i < HANDLERS_COUNT; ++i) {
+      if (qmsg.type == handlers[i].id) {
+        handlers[i].func(&childs, &qmsg);
+        break;
+      }
     }
   }
 
-  //for (i = 0; i < proc_count; ++i) {
+  //for (i = 0; i < childs.count; ++i) {
   //  waitpid(childs[i].pid, NULL, 0);
   //}
   while(wait(NULL) > 0);
 
   free_resources();
-  free(childs);
+  free(childs.worker);
   return 0;
 }
 
@@ -148,25 +154,35 @@ void free_resources()
   glob.shm_buffer = NULL;
 }
 
-void handler_exit(Message *msg);
-void handler_default(Message *msg)
+void handler_exit(ChildList *childs, Message *msg)
 {
   int i;
-  for (i = 0; i < proc_count; ++i) {
-    if (!sem_down_nowait(glob.semid, i, 1)) {
+  for (i = 0; i < childs->count; ++i) {
+    sem_down(childs->worker[i].semid, childs->worker[i].index, 1);
+    memcpy(childs->worker[i].message, msg, sizeof(Message));
+    sem_up(childs->worker[i].semid, childs->worker[i].index, 2);
+  }
+}
+
+void handler_default(ChildList *childs, Message *msg)
+{
+  int i = 0;
+  while(1) {
+    if (!sem_down_nowait(childs->worker[i].semid, childs->worker[i].index, 1)) {
       // Message processed
-      if (childs[i].message->status == SDONE) {
-        bzero(childs[i].message, sizeof(Message));
+      if (childs->worker[i].message->status == SDONE) {
+        bzero(childs->worker[i].message, sizeof(Message));
       }
-      memcpy(childs[i].message, &qmsg, sizeof(Message));
-      sem_up(glob.semid, i, 2);
+      memcpy(childs->worker[i].message, msg, sizeof(Message));
+      sem_up(childs->worker[i].semid, childs->worker[i].index, 2);
       break;
     }
 
     // Repeat loop
-    if (i == (proc_count - 1)) {
+    if (i < childs->count) ++i;
+    else {
+      i = 0;
       usleep(10);
-      i = -1;
     }
   }
 }

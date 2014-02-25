@@ -18,6 +18,7 @@ int main()
 
   queueid = msg_init();
   bpid = exec_balancer(queueid);
+  printf("Started balancer (pid %d)\n", bpid);
 
   if (!(ifd = fopen(ifile_name, "r"))) {
     perror("Cannot open input file");
@@ -25,28 +26,27 @@ int main()
   }
 
   while (fgets(line, sizeof(line), ifd)) {
-    fill_msg(&msg, type, status, line);
+    fill_msg(&msg, TMSG, 0, line);
     msg_send(queueid, &msg);
     usleep(10);
   }
   fclose(ifd);
 
   // Send exit message
-  fill_msg(2, 1, NULL);
+  fill_msg(&msg, TEXIT, 1, NULL);
   msg_send(queueid, &msg);
 
-  wait(0);
   msg_free(queueid);
   return 0;
 }
 
 int exec_balancer(int queueid)
 {
-  int pid;
   char squeueid[20];
+  int pid = fork();
+  if (pid) return pid;
+
   sprintf(squeueid, "%d", queueid);
-  if (pid = fork())
-    return pid;
   if ((execl("multi", "multi", "-q", squeueid, NULL)) != 0) {
     fprintf(stderr, "Failed to execute balancer\n");
     exit(-1);
