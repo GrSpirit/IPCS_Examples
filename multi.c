@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
   Worker *childs;
   Message qmsg;
 
+  atexit(free_resources);
   if (parse_params(argc, argv, &queueid, &proc_count)) {
     exit(0);
   }

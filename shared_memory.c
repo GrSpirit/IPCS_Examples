@@ -10,8 +10,8 @@
 int shm_init(size_t size)
 {
   int shmid;
-  if ((shmid = shmget(IPC_PRIVATE, size, 0660 | IPC_CREAT)) < 0) {
-    perror("Failed to initiate shared memory: ");
+  if ((shmid = shmget(IPC_PRIVATE, size, 0660)) < 0) {
+    perror("Failed to initiate shared memory");
     exit(-1);
   }
   return shmid;
@@ -22,7 +22,7 @@ void *shm_attach(int shmid)
 {
   void *buffer;
   if ((buffer = shmat(shmid, NULL, 0)) == (void*)(-1)) {
-    perror("Failed to attach to shared memory: ");
+    perror("Failed to attach to shared memory");
     exit(-1);
   }
   return buffer;
@@ -32,12 +32,12 @@ void *shm_attach(int shmid)
 void shm_free(int shmid, void *buffer)
 {
   if (buffer && shmdt(buffer) < 0) {
-    perror("Failed to detach shared memory: ");
+    perror("Failed to detach shared memory");
     exit(-1);
   }
 
   if (shmid && shmctl(shmid, IPC_RMID, NULL) < 0) {
-    perror("Failed to delete shared memory: ");
+    perror("Failed to delete shared memory");
     exit(-1);
   }
 }
