@@ -20,4 +20,4 @@ starter: $(STARTER_OBJ)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	@rm -f multi tcp_server *.o
+	@rm -f starter multi tcp_server *.o
