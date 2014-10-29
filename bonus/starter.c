@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include "queue.h"
 #include "starter.h"
@@ -36,6 +37,7 @@ int main()
   fill_msg(&msg, TEXIT, 1, NULL);
   msg_send(queueid, &msg);
 
+  wait(NULL);
   msg_free(queueid);
   return 0;
 }

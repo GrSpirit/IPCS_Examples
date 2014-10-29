@@ -24,14 +24,13 @@ int main(int argc, char *argv[])
   int i;
   int pid;
   int queueid = -1;
-  //int proc_count = 2;
-  //Worker *childs;
   ChildList childs = {.count = 2};
   Message qmsg;
 
   if (parse_params(argc, argv, &queueid, &childs.count)) {
     exit(0);
   }
+  printf("Queue [%d]; childs [%d]\n", queueid, childs.count);
 
   if (childs.count < 1 || childs.count > 10) {
     fprintf(stderr, "ERROR: Bad process count: %d\n", childs.count);
@@ -68,6 +67,7 @@ int main(int argc, char *argv[])
         break;
       }
     }
+    if (qmsg.type == TEXIT) break;
   }
 
   //for (i = 0; i < childs.count; ++i) {
@@ -86,25 +86,28 @@ void worker_run(Worker *worker)
   char file_name[255];
   Message *msg = worker->message;
   sprintf(file_name, "worker%d.dmp", worker->index);
+  printf("Logging into %s\n", file_name);
   while(1) {
     sem_down(worker->semid, worker->index, 2);
+    printf("Got message [%d][%s]\n", msg->type, msg->text);
     switch (msg->type) {
       case TEXIT:  // Exit
         exit(0);
       case TMSG:   // Process message
         if (!(fd = fopen(file_name, "a"))) {
-          perror("Can\'t open file: ");
+          perror("Can\'t open file");
           exit(-1);
         }
         if (fprintf(fd, "Received message: %s\n", msg->text) < 0) {
-          perror("Can\'t write to file: ");
+          perror("Can\'t write into file");
           exit(-1);
         }
         msg->status = SDONE;
         if (fclose(fd) != 0) {
-          perror("Can\'t close file: ");
+          perror("Can\'t close file");
           exit(-1);
         }
+        break;
     }
     sem_up(worker->semid, worker->index, 1);
   }
@@ -115,11 +118,11 @@ int parse_params(int argc, char *argv[], int *queueid, int *proc_count)
   int opt;
   int qfnd = 0;
   const char usage_str[] = "Usage: multi -q queue_id [-p process_count]\n";
-  while ((opt = getopt(argc, argv, "qp")) != -1) {
+  while ((opt = getopt(argc, argv, "q:p:")) != -1) {
     switch(opt) {
       case 'q':
         *queueid = atoi(optarg);
-        if (*queueid <= 0) {
+        if (*queueid <= 0 || optarg == NULL) {
           fprintf(stderr, "Wrong queue identifier: %s\n", optarg);
           return -1;
         }
@@ -167,14 +170,17 @@ void handler_exit(ChildList *childs, Message *msg)
 void handler_default(ChildList *childs, Message *msg)
 {
   int i = 0;
+  printf("Sending message %s\n", msg->text);
   while(1) {
     if (!sem_down_nowait(childs->worker[i].semid, childs->worker[i].index, 1)) {
+      printf("Send msg for %d\n", i);
       // Message processed
       if (childs->worker[i].message->status == SDONE) {
         bzero(childs->worker[i].message, sizeof(Message));
       }
       memcpy(childs->worker[i].message, msg, sizeof(Message));
       sem_up(childs->worker[i].semid, childs->worker[i].index, 2);
+      sleep(1);
       break;
     }
 
