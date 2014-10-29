@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
   ChildList childs = {.count = 2};
   Message qmsg;
 
+  atexit(free_resources);
   if (parse_params(argc, argv, &queueid, &childs.count)) {
     exit(0);
   }
